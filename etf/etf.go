@@ -543,11 +543,11 @@ func setStructField(term Tuple, dest reflect.Value) error {
 	for j<num && !dest.Field(j).CanSet() {
 		j++
 	}
-	for i, elem := range term {
+	for _, elem := range term {
 		// let it panic if number of term elements is bigger than
 		// number of struct fields
 		if j < num {
-			if err := termIntoStruct(elem, dest.Field(i)); err != nil {
+			if err := termIntoStruct(elem, dest.Field(j)); err != nil {
 				return err
 			}
 			j++
