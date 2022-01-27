@@ -538,11 +538,19 @@ func setStructField(term Tuple, dest reflect.Value) error {
 		dest.Set(pdest)
 		dest = pdest.Elem()
 	}
+	j := 0
+	num := dest.NumField()
+	for j<num && !dest.Field(j).CanSet() {
+		j++
+	}
 	for i, elem := range term {
 		// let it panic if number of term elements is bigger than
 		// number of struct fields
-		if err := termIntoStruct(elem, dest.Field(i)); err != nil {
-			return err
+		if j < num {
+			if err := termIntoStruct(elem, dest.Field(i)); err != nil {
+				return err
+			}
+			j++
 		}
 	}
 
