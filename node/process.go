@@ -61,7 +61,12 @@ func (p *process) RegisterName(name string) error {
 	if p.behavior == nil {
 		return ErrProcessTerminated
 	}
-	return p.registerName(name, p.self)
+	if err := p.registerName(name, p.self); err != nil{
+		return err
+	}else {
+		p.name = name
+		return nil
+	}
 }
 
 func (p *process) UnregisterName(name string) error {
