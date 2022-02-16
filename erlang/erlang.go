@@ -21,7 +21,7 @@ func (e *erlang) HandleCall(process *gen.ServerProcess, from gen.ServerFrom, mes
 	lib.Log("ERLANG: HandleCall: %#v, From: %#v", message, from)
 
 	switch m := message.(type) {
-	case etf.Tuple:
+	case etf.List:
 		switch m.Element(1) {
 		case etf.Atom("process_info"):
 			args := m.Element(2).(etf.List)
@@ -31,12 +31,14 @@ func (e *erlang) HandleCall(process *gen.ServerProcess, from gen.ServerFrom, mes
 			args := m.Element(2).(etf.List)
 			reply := systemInfo(process, args[0].(etf.Atom))
 			return reply, gen.ServerStatusOK
+		case etf.Atom("dirty_cpu_schedulers"):
+			return 1, gen.ServerStatusOK
 
 		case etf.Atom("function_exported"):
 			return true, gen.ServerStatusOK
 		}
-
 	}
+
 	return etf.Atom("ok"), gen.ServerStatusOK
 }
 

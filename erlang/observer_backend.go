@@ -39,6 +39,13 @@ func (o *observerBackend) Init(process *gen.ServerProcess, args ...etf.Term) err
 	}
 	node.ProvideRPC("appmon_info", "start_link2", funAppmonInfo)
 
+	funSysInfp := func(a ...etf.Term) etf.Term {
+		return o.sysInfo(process)
+	}
+
+	node.ProvideRPC("observer_backend", "sys_info", funSysInfp)
+
+
 	return nil
 }
 

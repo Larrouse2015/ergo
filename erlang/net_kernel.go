@@ -19,7 +19,7 @@ type KernelApp struct {
 
 func (nka *KernelApp) Load(args ...etf.Term) (gen.ApplicationSpec, error) {
 	return gen.ApplicationSpec{
-		Name:        "erlang",
+		Name:        "kernel",
 		Description: "Erlang support app",
 		Version:     "v.1.0",
 		Children: []gen.ApplicationChildSpec{
@@ -106,7 +106,7 @@ func (nk *netKernel) HandleCall(process *gen.ServerProcess, from gen.ServerFrom,
 			case etf.Atom("fetch_stats"):
 				// etf.Tuple{"spawn_link", "observer_backend", "fetch_stats", etf.List{etf.Pid{}, 500}, etf.Pid{}}
 				sendTo := t.Element(4).(etf.List).Element(1).(etf.Pid)
-				period := t.Element(4).(etf.List).Element(2).(int)
+				period := t.Element(4).(etf.List).Element(2).(int64)
 				if _, ok := nk.routinesCtx[sendTo]; ok {
 					reply = etf.Atom("error")
 					return
@@ -167,7 +167,7 @@ func sendProcInfo(p gen.Process, to etf.Pid) {
 	p.Send(to, etf.Tuple{etf.Atom("EXIT"), p.Self(), etf.Atom("normal")})
 }
 
-func sendStats(ctx context.Context, p gen.Process, to etf.Pid, period int, cancel context.CancelFunc) {
+func sendStats(ctx context.Context, p gen.Process, to etf.Pid, period int64, cancel context.CancelFunc) {
 	var utime, utimetotal, stime, stimetotal int64
 	defer cancel()
 	for {
