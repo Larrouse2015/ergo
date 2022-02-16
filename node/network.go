@@ -14,7 +14,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"runtime"
 
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
@@ -203,36 +202,21 @@ func (n *network) Resolve(name string) (NetworkRoute, error) {
 
 func (n *network) serve(ctx context.Context, link *dist.Link) error {
 	// define the total number of reader/writer goroutines
-	numHandlers := runtime.GOMAXPROCS(n.opts.ConnectionHandlers)
-
 	// do not use shared channels within intencive code parts, impacts on a performance
-	receivers := struct {
-		recv []chan *lib.Buffer
-		n    int
-		i    int
-	}{
-		recv: make([]chan *lib.Buffer, numHandlers),
-		n:    numHandlers,
-	}
 
 	p := &peer{
 		name: link.GetRemoteName(),
-		send: make([]chan []etf.Term, numHandlers),
-		n:    numHandlers,
 	}
+
+	fmt.Printf("new node connect %s", p.name)
 
 	if err := n.registrar.registerPeer(p); err != nil {
 		// duplicate link?
 		return err
 	}
 
-	// run readers for incoming messages
-	for i := 0; i < numHandlers; i++ {
-		// run packet reader/handler routines (decoder)
-		recv := make(chan *lib.Buffer, n.opts.RecvQueueLength)
-		receivers.recv[i] = recv
-		go link.ReadHandlePacket(ctx, recv, n.handleMessage)
-	}
+	receivers := make(chan *lib.Buffer, n.opts.RecvQueueLength)
+	go link.ReadHandlePacket(ctx, receivers, n.handleMessage)
 
 	cacheIsReady := make(chan bool)
 
@@ -240,7 +224,6 @@ func (n *network) serve(ctx context.Context, link *dist.Link) error {
 	go func() {
 		var err error
 		var packetLength int
-		var recv chan *lib.Buffer
 
 		linkctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -264,16 +247,12 @@ func (n *network) serve(ctx context.Context, link *dist.Link) error {
 			n.registrar.unregisterPeer(link.GetRemoteName())
 
 			// close handlers channel
-			p.mutex.Lock()
-			for i := 0; i < numHandlers; i++ {
-				if p.send[i] != nil {
-					close(p.send[i])
-				}
-				if receivers.recv[i] != nil {
-					close(receivers.recv[i])
-				}
+			if p.send != nil {
+				close(p.send)
 			}
-			p.mutex.Unlock()
+			if receivers != nil {
+				close(receivers)
+			}
 		}()
 
 		b := lib.TakeBuffer()
@@ -295,35 +274,19 @@ func (n *network) serve(ctx context.Context, link *dist.Link) error {
 			// buffer b has to be released by the reader of
 			// recv channel (link.ReadHandlePacket)
 			b.B = b.B[:packetLength]
-			recv = receivers.recv[receivers.i]
 
-			recv <- b
+			receivers <- b
 
 			// set new buffer as a current for the next reading
 			b = b1
 
-			// round-robin switch to the next receiver
-			receivers.i++
-			if receivers.i < receivers.n {
-				continue
-			}
-			receivers.i = 0
-
 		}
 	}()
 
-	// we should make sure if the cache is ready before we start writers
 	<-cacheIsReady
 
-	// run readers/writers for incoming/outgoing messages
-	for i := 0; i < numHandlers; i++ {
-		// run writer routines (encoder)
-		send := make(chan []etf.Term, n.opts.SendQueueLength)
-		p.mutex.Lock()
-		p.send[i] = send
-		p.mutex.Unlock()
-		go link.Writer(send, n.opts.FragmentationUnit)
-	}
+	p.send = make(chan []etf.Term, n.opts.SendQueueLength)
+	go link.Writer(p.send, n.opts.FragmentationUnit)
 
 	return nil
 }
@@ -611,24 +574,5 @@ func generateSelfSignedCert(version Version) (tls.Certificate, error) {
 
 type peer struct {
 	name string
-	send []chan []etf.Term
-	i    int
-	n    int
-
-	mutex sync.Mutex
-}
-
-func (p *peer) getChannel() chan []etf.Term {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	c := p.send[p.i]
-
-	p.i++
-	if p.i < p.n {
-		return c
-	}
-
-	p.i = 0
-	return c
+	send chan []etf.Term
 }

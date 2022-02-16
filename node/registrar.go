@@ -651,8 +651,7 @@ next:
 			r.mutexPeers.Unlock()
 		}
 
-		send := peer.getChannel()
-		send <- []etf.Term{etf.Tuple{distProtoSEND, etf.Atom(""), tto}, message}
+		peer.send <- []etf.Term{etf.Tuple{distProtoSEND, etf.Atom(""), tto}, message}
 
 	case gen.ProcessID:
 		lib.Log("[%s] REGISTRAR sending message by gen.ProcessID %#v", r.nodename, tto)
@@ -679,8 +678,7 @@ next:
 			r.mutexPeers.Unlock()
 		}
 
-		send := peer.getChannel()
-		send <- []etf.Term{etf.Tuple{distProtoREG_SEND, from, etf.Atom(""), etf.Atom(tto.Name)}, message}
+		peer.send <- []etf.Term{etf.Tuple{distProtoREG_SEND, from, etf.Atom(""), etf.Atom(tto.Name)}, message}
 
 	case string:
 		lib.Log("[%s] REGISTRAR sending message by name %#v", r.nodename, tto)
@@ -729,8 +727,7 @@ next:
 			r.mutexPeers.Unlock()
 		}
 
-		send := peer.getChannel()
-		send <- []etf.Term{etf.Tuple{distProtoALIAS_SEND, from, tto}, message}
+		peer.send <- []etf.Term{etf.Tuple{distProtoALIAS_SEND, from, tto}, message}
 
 	default:
 		lib.Log("[%s] unsupported receiver type %#v", r.nodename, tto)
@@ -759,7 +756,6 @@ func (r *registrar) routeRaw(nodename etf.Atom, messages ...etf.Term) error {
 		r.mutexPeers.Unlock()
 	}
 
-	send := peer.getChannel()
-	send <- messages
+	peer.send <- messages
 	return nil
 }
