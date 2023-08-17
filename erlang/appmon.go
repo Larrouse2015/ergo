@@ -73,7 +73,7 @@ func (am *appMon) HandleCast(process *gen.ServerProcess, message etf.Term) gen.S
 			}
 		}
 
-		process.CastAfter(process.Self(), "sendStat", 2*time.Second)
+		process.CastAfter(process.Self(), "sendStat", 30*time.Second)
 		return gen.ServerStatusOK
 
 	default:
@@ -87,7 +87,7 @@ func (am *appMon) HandleCast(process *gen.ServerProcess, message etf.Term) gen.S
 					sendTo: m.Element(1).(etf.Pid),
 				}
 
-				if m.Element(4) == etf.Atom("true") {
+				if m.Element(4).(bool) {
 					// add new job
 					if len(appState.jobs) == 0 {
 						process.Cast(process.Self(), "sendStat")

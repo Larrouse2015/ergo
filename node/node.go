@@ -334,7 +334,7 @@ func (n *node) applicationStart(startType, appName string, args ...etf.Term) (ge
 	options := gen.ProcessOptions{
 		Env: env,
 	}
-	process, e := n.Spawn("", options, rb.Behavior, args...)
+	process, e := n.Spawn(appName, options, rb.Behavior, args...)
 	if e != nil {
 		return nil, e
 	}

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"runtime/debug"
 
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
@@ -320,9 +321,9 @@ func (r *registrar) spawn(name string, opts processOptions, behavior gen.Process
 		if lib.CatchPanic() {
 			defer func() {
 				if rcv := recover(); rcv != nil {
-					pc, fn, line, _ := runtime.Caller(2)
-					fmt.Printf("Warning: initialization process failed %s[%q] %#v at %s[%s:%d]\n",
-						process.self, name, rcv, runtime.FuncForPC(pc).Name(), fn, line)
+					debug.Stack()
+					fmt.Printf("Warning: initialization process failed %s[%q] %#v at %s\n",
+						process.self, name, rcv, string(debug.Stack()))
 					r.deleteProcess(process.self)
 					err = fmt.Errorf("panic")
 				}
@@ -651,8 +652,7 @@ next:
 			r.mutexPeers.Unlock()
 		}
 
-		send := peer.getChannel()
-		send <- []etf.Term{etf.Tuple{distProtoSEND, etf.Atom(""), tto}, message}
+		peer.send <- []etf.Term{etf.Tuple{distProtoSEND, etf.Atom(""), tto}, message}
 
 	case gen.ProcessID:
 		lib.Log("[%s] REGISTRAR sending message by gen.ProcessID %#v", r.nodename, tto)
@@ -679,8 +679,7 @@ next:
 			r.mutexPeers.Unlock()
 		}
 
-		send := peer.getChannel()
-		send <- []etf.Term{etf.Tuple{distProtoREG_SEND, from, etf.Atom(""), etf.Atom(tto.Name)}, message}
+		peer.send <- []etf.Term{etf.Tuple{distProtoREG_SEND, from, etf.Atom(""), etf.Atom(tto.Name)}, message}
 
 	case string:
 		lib.Log("[%s] REGISTRAR sending message by name %#v", r.nodename, tto)
@@ -729,8 +728,7 @@ next:
 			r.mutexPeers.Unlock()
 		}
 
-		send := peer.getChannel()
-		send <- []etf.Term{etf.Tuple{distProtoALIAS_SEND, from, tto}, message}
+		peer.send <- []etf.Term{etf.Tuple{distProtoALIAS_SEND, from, tto}, message}
 
 	default:
 		lib.Log("[%s] unsupported receiver type %#v", r.nodename, tto)
@@ -759,7 +757,6 @@ func (r *registrar) routeRaw(nodename etf.Atom, messages ...etf.Term) error {
 		r.mutexPeers.Unlock()
 	}
 
-	send := peer.getChannel()
-	send <- messages
+	peer.send <- messages
 	return nil
 }

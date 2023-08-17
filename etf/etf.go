@@ -271,7 +271,8 @@ func termIntoStruct(term Term, dest reflect.Value) error {
 		pdest := reflect.New(dest.Type().Elem())
 		dest.Set(pdest)
 		dest = pdest.Elem()
-		return termIntoStruct(term, dest)
+		t := term.(Tuple)
+		return termIntoStruct(t[1:], dest)
 
 	case reflect.Array, reflect.Slice:
 		t := dest.Type()
